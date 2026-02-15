@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#667eea">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Tech News</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: #f0f2f5; color: #1a1a2e;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ========== ヘッダー ========== */
+  .header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white; padding: 16px; position: sticky; top: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .header-stats { font-size: 12px; opacity: 0.85; }
+  .refresh-btn {
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+    color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px;
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+  .refresh-btn:hover { background: rgba(255,255,255,0.35); }
+  .refresh-btn:active { transform: scale(0.95); }
+  .refresh-btn.loading .refresh-icon { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ========== タブ ========== */
+  .feed-tabs {
+    display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto;
+    background: white; border-bottom: 1px solid #e0e0e0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .feed-tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px;
+    white-space: nowrap; cursor: pointer; border: 1px solid #ddd;
+    background: white; color: #555; transition: all 0.2s;
+    user-select: none;
+  }
+  .tab:active { transform: scale(0.95); }
+  .tab.active { background: #667eea; color: white; border-color: #667eea; }
+  .tab-count {
+    background: rgba(0,0,0,0.08); padding: 1px 6px; border-radius: 10px;
+    font-size: 11px; margin-left: 4px;
+  }
+  .tab.active .tab-count { background: rgba(255,255,255,0.3); }
+
+  /* ========== メインコンテンツ ========== */
+  .content { max-width: 600px; margin: 0 auto; padding: 0 16px 80px; }
+
+  /* 初期メッセージ */
+  .empty-state {
+    text-align: center; padding: 60px 20px; color: #999;
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state p { font-size: 14px; line-height: 1.8; }
+  .empty-state .start-btn {
+    margin-top: 20px; padding: 12px 28px; background: #667eea;
+    color: white; border: none; border-radius: 24px; font-size: 15px;
+    cursor: pointer; font-weight: 600;
+  }
+  .empty-state .start-btn:hover { background: #5a6fd6; }
+
+  /* 日付グループ */
+  .date-group { margin-top: 20px; }
+  .date-label {
+    font-size: 13px; font-weight: 700; color: #667eea;
+    padding: 8px 4px; display: flex; align-items: center; gap: 8px;
+  }
+  .date-label::after { content: ''; flex: 1; height: 1px; background: #ddd; }
+  .date-count {
+    font-size: 11px; color: #999; font-weight: 400;
+    background: #eee; padding: 2px 8px; border-radius: 10px;
+  }
+  .card-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+
+  /* カード */
+  .card {
+    background: white; border-radius: 12px; padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08); transition: transform 0.15s, box-shadow 0.15s;
+    cursor: pointer; text-decoration: none; color: inherit; display: block;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+  .card:active { transform: scale(0.98); }
+
+  .card-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .card-source {
+    font-size: 12px; font-weight: 600; padding: 3px 10px;
+    border-radius: 12px; display: inline-block;
+  }
+  .source-nikkei { background: #e3f2fd; color: #1565c0; }
+  .source-atit { background: #e8f5e9; color: #2e7d32; }
+  .source-itmedia { background: #fff3e0; color: #e65100; }
+  .source-other { background: #f3e5f5; color: #7b1fa2; }
+  .card-time { font-size: 12px; color: #999; }
+
+  .card-title { font-size: 15px; font-weight: 600; line-height: 1.55; margin-bottom: 8px; }
+  .card-desc {
+    font-size: 13px; color: #666; line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .badge-new {
+    background: #ff5252; color: white; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 8px; margin-left: 6px; vertical-align: middle;
+  }
+
+  /* ステータスバー */
+  .status-bar {
+    text-align: center; padding: 16px; font-size: 12px; color: #999;
+  }
+
+  /* ローディング */
+  .loading-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.7); z-index: 100;
+    justify-content: center; align-items: center;
+  }
+  .loading-overlay.show { display: flex; }
+  .loading-spinner {
+    width: 40px; height: 40px; border: 3px solid #e0e0e0;
+    border-top-color: #667eea; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  /* トースト通知 */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: #333; color: white; padding: 12px 24px; border-radius: 24px;
+    font-size: 14px; z-index: 200; transition: transform 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Tech News</h1>
+    <div class="header-right">
+      <span class="header-stats" id="headerStats"></span>
+      <button class="refresh-btn" id="refreshBtn" onclick="fetchAllFeeds()">
+        <span class="refresh-icon">&#x21BB;</span> 更新
+      </button>
+    </div>
+  </div>
+
+  <div class="feed-tabs" id="feedTabs">
+    <div class="tab active" data-source="all">すべて<span class="tab-count" id="countAll">0</span></div>
+    <div class="tab" data-source="nikkei">日経クロステック<span class="tab-count" id="countNikkei">0</span></div>
+    <div class="tab" data-source="atit">@IT<span class="tab-count" id="countAtit">0</span></div>
+    <div class="tab" data-source="itmedia">ITmedia<span class="tab-count" id="countItmedia">0</span></div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">&#128240;</div>
+      <p>まだニュースがありません。<br>「更新」ボタンを押してニュースを取得しましょう。</p>
+      <button class="start-btn" onclick="fetchAllFeeds()">ニュースを取得する</button>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+// ===== 設定 =====
+const RSS_FEEDS = [
+  {
+    key: 'nikkei',
+    name: '日経クロステック',
+    url: 'https://xtech.nikkei.com/rss/index.rdf',
+    sourceClass: 'source-nikkei'
+  },
+  {
+    key: 'atit',
+    name: '@IT',
+    url: 'https://atmarkit.itmedia.co.jp/rss/rss.xml',
+    sourceClass: 'source-atit'
+  },
+  {
+    key: 'itmedia',
+    name: 'ITmedia',
+    url: 'https://rss.itmedia.co.jp/rss/2.0/itmedia_all.xml',
+    sourceClass: 'source-itmedia'
+  }
+];
+
+const RSS2JSON_API = 'https://api.rss2json.com/v1/api.json?rss_url=';
+const DB_NAME = 'TechNewsDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'articles';
+
+// ===== 状態管理 =====
+let db = null;
+let currentFilter = 'all';
+let allArticles = [];
+
+// ===== IndexedDB =====
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('pubDate', 'pubDate', { unique: false });
+        store.createIndex('sourceKey', 'sourceKey', { unique: false });
+      }
+    };
+    request.onsuccess = (e) => {
+      db = e.target.result;
+      resolve(db);
+    };
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function saveArticles(articles) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    articles.forEach(article => store.put(article));
+    tx.oncomplete = () => resolve();
+    tx.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function getAllArticles() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+// ===== RSS取得 =====
+async function fetchFeed(feed) {
+  try {
+    const response = await fetch(RSS2JSON_API + encodeURIComponent(feed.url));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    if (data.status !== 'ok' || !data.items) {
+      throw new Error('RSS parse error');
+    }
+
+    return data.items.map(item => ({
+      id: item.link || item.guid || (feed.key + '_' + item.title),
+      title: item.title || '',
+      description: stripHTML(item.description || ''),
+      link: item.link || '',
+      pubDate: item.pubDate || new Date().toISOString(),
+      sourceKey: feed.key,
+      sourceName: feed.name,
+      sourceClass: feed.sourceClass,
+      fetchedAt: new Date().toISOString()
+    }));
+  } catch (err) {
+    console.error(`${feed.name} の取得に失敗:`, err);
+    return [];
+  }
+}
+
+function stripHTML(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+async function fetchAllFeeds() {
+  const btn = document.getElementById('refreshBtn');
+  const overlay = document.getElementById('loadingOverlay');
+
+  btn.classList.add('loading');
+  overlay.classList.add('show');
+
+  try {
+    const results = await Promise.all(RSS_FEEDS.map(feed => fetchFeed(feed)));
+    const articles = results.flat();
+
+    if (articles.length > 0) {
+      await saveArticles(articles);
+      showToast(`${articles.length}件の記事を取得しました`);
+    } else {
+      showToast('新しい記事はありませんでした');
+    }
+
+    await loadAndRender();
+  } catch (err) {
+    console.error('取得エラー:', err);
+    showToast('取得に失敗しました。もう一度お試しください。');
+  } finally {
+    btn.classList.remove('loading');
+    overlay.classList.remove('show');
+  }
+}
+
+// ===== 表示 =====
+async function loadAndRender() {
+  allArticles = await getAllArticles();
+
+  // 日付の新しい順にソート
+  allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+  updateCounts();
+  renderArticles();
+}
+
+function updateCounts() {
+  const filtered = getFilteredArticles();
+  const nikkei = allArticles.filter(a => a.sourceKey === 'nikkei').length;
+  const atit = allArticles.filter(a => a.sourceKey === 'atit').length;
+  const itmedia = allArticles.filter(a => a.sourceKey === 'itmedia').length;
+  const total = allArticles.length;
+
+  document.getElementById('countAll').textContent = total;
+  document.getElementById('countNikkei').textContent = nikkei;
+  document.getElementById('countAtit').textContent = atit;
+  document.getElementById('countItmedia').textContent = itmedia;
+  document.getElementById('headerStats').textContent = `${total}件`;
+}
+
+function getFilteredArticles() {
+  if (currentFilter === 'all') return allArticles;
+  return allArticles.filter(a => a.sourceKey === currentFilter);
+}
+
+function renderArticles() {
+  const content = document.getElementById('content');
+  const articles = getFilteredArticles();
+
+  if (articles.length === 0) {
+    document.getElementById('emptyState').style.display = 'block';
+    content.innerHTML = '';
+    content.appendChild(createEmptyState());
+    return;
+  }
+
+  // 日付でグループ化
+  const groups = groupByDate(articles);
+  let html = '';
+
+  groups.forEach(group => {
+    html += `
+      <div class="date-group">
+        <div class="date-label">
+          ${group.label}
+          <span class="date-count">${group.articles.length}件</span>
+        </div>
+        <div class="card-list">
+    `;
+
+    group.articles.forEach(article => {
+      const isNew = isWithin24Hours(article.pubDate);
+      html += `
+        <a class="card" href="${escapeHTML(article.link)}" target="_blank" rel="noopener">
+          <div class="card-meta">
+            <span class="card-source ${article.sourceClass}">${escapeHTML(article.sourceName)}</span>
+            <span class="card-time">${formatTime(article.pubDate)}</span>
+          </div>
+          <div class="card-title">
+            ${escapeHTML(article.title)}
+            ${isNew ? '<span class="badge-new">NEW</span>' : ''}
+          </div>
+          <div class="card-desc">${escapeHTML(article.description)}</div>
+        </a>
+      `;
+    });
+
+    html += '</div></div>';
+  });
+
+  // 最終更新時刻
+  html += `<div class="status-bar">最終更新: ${formatDateTime(new Date())}</div>`;
+
+  content.innerHTML = html;
+}
+
+function createEmptyState() {
+  const div = document.createElement('div');
+  div.className = 'empty-state';
+  div.innerHTML = `
+    <div class="empty-icon">&#128240;</div>
+    <p>まだニュースがありません。<br>「更新」ボタンを押してニュースを取得しましょう。</p>
+    <button class="start-btn" onclick="fetchAllFeeds()">ニュースを取得する</button>
+  `;
+  return div;
+}
+
+// ===== 日付グループ化 =====
+function groupByDate(articles) {
+  const groups = new Map();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  articles.forEach(article => {
+    const date = new Date(article.pubDate);
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+    if (!groups.has(dateKey)) {
+      const articleDate = new Date(date);
+      articleDate.setHours(0, 0, 0, 0);
+
+      let label;
+      if (articleDate.getTime() === today.getTime()) {
+        label = formatDateJP(date) + '・今日';
+      } else if (articleDate.getTime() === yesterday.getTime()) {
+        label = formatDateJP(date) + '・昨日';
+      } else {
+        label = formatDateJP(date);
+      }
+
+      groups.set(dateKey, { label, articles: [] });
+    }
+    groups.get(dateKey).articles.push(article);
+  });
+
+  return Array.from(groups.values());
+}
+
+// ===== ユーティリティ =====
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
+function formatDateJP(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
+}
+
+function formatTime(dateStr) {
+  const d = new Date(dateStr);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function formatDateTime(date) {
+  return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function isWithin24Hours(dateStr) {
+  const now = new Date();
+  const pubDate = new Date(dateStr);
+  return (now - pubDate) < 24 * 60 * 60 * 1000;
+}
+
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ===== タブ切り替え =====
+document.getElementById('feedTabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  currentFilter = tab.dataset.source;
+  renderArticles();
+});
+
+// ===== 初期化 =====
+async function init() {
+  try {
+    await openDB();
+    await loadAndRender();
+  } catch (err) {
+    console.error('初期化エラー:', err);
+  }
+}
+
+// Service Worker 登録
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.log('SW登録失敗:', err);
+    });
+  });
+}
+
+init();
+</script>
+</body>
+</html>
