@@ -107,6 +107,7 @@
   .source-nikkei { background: #e3f2fd; color: #1565c0; }
   .source-atit { background: #e8f5e9; color: #2e7d32; }
   .source-itmedia { background: #fff3e0; color: #e65100; }
+  .source-toyokeizai { background: #fce4ec; color: #c62828; }
   .source-other { background: #f3e5f5; color: #7b1fa2; }
   .card-time { font-size: 12px; color: #999; }
 
@@ -166,6 +167,7 @@
     <div class="tab" data-source="nikkei">日経クロステック<span class="tab-count" id="countNikkei">0</span></div>
     <div class="tab" data-source="atit">@IT<span class="tab-count" id="countAtit">0</span></div>
     <div class="tab" data-source="itmedia">ITmedia<span class="tab-count" id="countItmedia">0</span></div>
+    <div class="tab" data-source="toyokeizai">東洋経済<span class="tab-count" id="countToyokeizai">0</span></div>
   </div>
 
   <div class="content" id="content">
@@ -202,6 +204,12 @@ const RSS_FEEDS = [
     name: 'ITmedia',
     url: 'https://rss.itmedia.co.jp/rss/2.0/itmedia_all.xml',
     sourceClass: 'source-itmedia'
+  },
+  {
+    key: 'toyokeizai',
+    name: '東洋経済オンライン',
+    url: 'https://toyokeizai.net/list/feed/rss',
+    sourceClass: 'source-toyokeizai'
   }
 ];
 
@@ -333,12 +341,14 @@ function updateCounts() {
   const nikkei = allArticles.filter(a => a.sourceKey === 'nikkei').length;
   const atit = allArticles.filter(a => a.sourceKey === 'atit').length;
   const itmedia = allArticles.filter(a => a.sourceKey === 'itmedia').length;
+  const toyokeizai = allArticles.filter(a => a.sourceKey === 'toyokeizai').length;
   const total = allArticles.length;
 
   document.getElementById('countAll').textContent = total;
   document.getElementById('countNikkei').textContent = nikkei;
   document.getElementById('countAtit').textContent = atit;
   document.getElementById('countItmedia').textContent = itmedia;
+  document.getElementById('countToyokeizai').textContent = toyokeizai;
   document.getElementById('headerStats').textContent = `${total}件`;
 }
 
